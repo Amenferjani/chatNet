@@ -7,6 +7,6 @@ const messageSchema = new mongoose.Schema({
     seen: Boolean,
 })
 
-const message = mongoose.model('Message', messageSchema);
-
+const message = mongoose.model('message', messageSchema);
+    
 module.exports = message;

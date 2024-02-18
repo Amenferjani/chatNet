@@ -8,7 +8,6 @@ const conversationSchema = new mongoose.Schema({
     img: {
         data: Buffer,
         contentType: String,
-        default: null,
     },
     members: [{
         type : mongoose.Schema.Types.ObjectId,
@@ -16,5 +15,5 @@ const conversationSchema = new mongoose.Schema({
     }],
     lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'message' },
 })
-const conversation = mongoose.model("Conversation", conversationSchema);
+const conversation = mongoose.model("conversation", conversationSchema);
 module.exports = conversation;
