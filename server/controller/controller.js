@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/user');
+const Message = require('../models/message');
 const io = require('../server'); 
 const conn = require('../config/connection'); 
 const bcrypt = require("bcrypt");
@@ -137,6 +138,74 @@ const updateUserImage = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+/*************** message section ***************/
+
+const getMessageById = async (req, res) => {
+    const messageId = req.params.messageId
+    try {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            res.status(404).json({message:"message not found"})
+        }
+        res.status(200).json(message);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: "Internal server error"});
+    }
+}
+const addMessage = async (req, res) => {
+    const userId = req.params.userId;
+    const conversationId = req.params.conversationId;
+    const {
+        content,
+        timestamp,
+    } = req.body;
+    try {
+        const message = await Message.create({
+        sender: userId,
+        conversation: conversationId,
+        content: content,
+        timestamp: timestamp,
+        seen: false,
+    });
+        global.io.emit(conversationId + '_add_msg', message); 
+        res.status(200).json(message);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: " Internal server error" });
+    }
+};
+
+const deleteMessage = async (req, res) => {
+    const msgId = req.params.msgId;
+    try {
+        const message = await Message.findByIdAndDelete(msgId);
+        if (!message) {
+            return res.status(400).json({ message: 'No message with that ID' });
+        }
+        global.io.emit(message.conversation, { action: 'deleteMsg', data: message._id })
+        res.status(200).json({ message: 'Message deleted ' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const getMessagesByConversationId = async(req, res) => {
+    const { conversationId } = req.params;
+    const { page = 1, pageSize = 10 } = req.body;
+    try {
+        const messages = await Message.find({ conversationId })
+        .sort({ timestamp: -1 })  
+        .skip((page - 1) * pageSize)  
+        .limit(Number(pageSize));
+
+        res.json(messages);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
 
 module.exports = {
     // ? user section
@@ -146,4 +215,10 @@ module.exports = {
     updateUserPassword,
     updateUsername,
     updateUserImage,
+    // ? message section
+    getMessageById,
+    addMessage,
+    deleteMessage,
+    getMessagesByConversationId,
+
 };
