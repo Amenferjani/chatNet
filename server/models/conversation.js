@@ -3,17 +3,18 @@ const conversationSchema = new mongoose.Schema({
     type: {
         type: String,
         enum: [private, group],
-        default : private
+        default: private
     },
     img: {
         data: Buffer,
         contentType: String,
     },
     members: [{
-        type : mongoose.Schema.Types.ObjectId,
-        ref : "user"
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
     }],
     lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'message' },
-})
+    name: String,
+});
 const conversation = mongoose.model("conversation", conversationSchema);
 module.exports = conversation;

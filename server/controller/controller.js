@@ -1,9 +1,10 @@
 const express = require('express');
 const User = require('../models/user');
 const Message = require('../models/message');
-const io = require('../server'); 
+const Conversation = require('../models/conversation');
 const conn = require('../config/connection'); 
 const bcrypt = require("bcrypt");
+const message = require('../models/message');
 
 /*************** user section ***************/
 
@@ -191,22 +192,120 @@ const deleteMessage = async (req, res) => {
     }
 }
 
-const getMessagesByConversationId = async(req, res) => {
+const getMessagesByConversationId = async (req, res) => {
     const { conversationId } = req.params;
     const { page = 1, pageSize = 10 } = req.body;
     try {
         const messages = await Message.find({ conversationId })
-        .sort({ timestamp: -1 })  
-        .skip((page - 1) * pageSize)  
-        .limit(Number(pageSize));
+            .sort({ timestamp: -1 })
+            .skip((page - 1) * pageSize)
+            .limit(Number(pageSize));
 
         res.json(messages);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
-    }
-}
+    };
+};
 
+const getConversationById = async (req, res) => {
+    const conversationId = req.params.conversationId;
+    try {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            res.status(404).json({ message: 'No conversation found.' });
+        }
+        res.json(conversation);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    };
+};
+
+const getConversationsByUserId = async (req, res) => {
+    const userId = req.params.userId;
+    try {
+        const conversations = await Conversation.find({ members: userId });
+        res.status(200).json(conversations);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    };
+};
+
+const createConversation = async (req, res) => {
+    const { members, name } = req.body;
+    
+    try {
+        const type = members.length > 2 ? 'group' : 'private';
+        const conversation = await Conversation.create({
+            type: type,
+            members: members,
+            name: name ? name : '',
+        });
+        res.status(201).json(conversation);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    };
+};
+const deleteConversation = async (req, res) => {
+    const { conversationId, memberId } = req.params;
+    try {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            res.status(404).json({ message: 'No conversation found.' });
+        }
+        if (conversation.members.length === 1) {
+            await Conversation.findByIdAndDelete(conversationId);
+            res.status(200).json({ message: 'Conversation deleted ' });
+        }
+        conversation.members = conversation.members.filter(member =>
+            member.toString() !== memberId
+        );
+        await conversation.save();
+        res.status(200).json({ message: 'Member removed from conversation.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    };
+};
+const addMembers2Conversation = async (req, res) => {
+    const conversationId = req.params.conversationId;
+    const members = req.body.members;
+    try {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            res.status(404).json({ message: 'No conversation found.' });
+        }
+        members.forEach(member => {
+            conversation.members.push(member);
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    };
+};
+const updateConversationName = async (req, res) => {
+    const conversationId = req.params.conversationId;
+    const name = req.body.name;
+    try {
+        const conversation = await Conversation.findById({ conversationId });
+        if(!conversation){
+            return res.status(404).json({ error: "Conversation not found", code: "CONVERSATION_NOT_FOUND" });
+        }
+        if (conversation.name === name) {
+            return res.status(200).json({ message: 'Name already in use'});
+        }
+        conversation.name = name;
+        await conversation.save();
+
+        res.status(200).json({ message: "Conversation name updated successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    };
+};
 module.exports = {
     // ? user section
     getUserById,
@@ -220,5 +319,11 @@ module.exports = {
     addMessage,
     deleteMessage,
     getMessagesByConversationId,
-
+    //? conversation section
+    getConversationById,
+    getConversationsByUserId,
+    createConversation,
+    deleteConversation,
+    addMembers2Conversation,
+    updateConversationName,
 };
