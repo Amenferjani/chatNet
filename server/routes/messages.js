@@ -4,7 +4,7 @@
 
 //?Endpoint for getting msg by ID
     router.get('/:id',
-        messageController.getMessageById);
+        controller.getMessageById);
         
 //? Endpoint for getting messages by Conversation ID
     router.get('/conversation/:id/',
@@ -16,6 +16,6 @@
 
 //? Endpoint for deleting a msg
     router.delete('/:id',
-        messageController.deleteMessage);
+        controller.deleteMessage);
 
     module.exports = router;

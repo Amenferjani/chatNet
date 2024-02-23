@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 const conversationSchema = new mongoose.Schema({
     type: {
         type: String,
-        enum: [private, group],
-        default: private
+        enum: ["private", "group"],
+        default: "private"
     },
     img: {
         data: Buffer,
