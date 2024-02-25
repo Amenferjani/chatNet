@@ -12,8 +12,9 @@ const messageRoutes = require('./routes/messages');
 const conversationRoutes = require('./routes/conversation');
 
 app.use('/api/user', userRoutes);
-// app.use('/api/message', messageRoutes);
-// app.use('/api/conversation', conversationRoutes);
+app.use('/api/message', messageRoutes);
+app.use('/api/conversation', conversationRoutes);
+
 
 const PORT = process.env.PORT || 8800;
 
@@ -21,4 +22,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-module.exports = app;
+module.exports = {app, generateToken, verifyToken};

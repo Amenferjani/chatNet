@@ -1,6 +1,7 @@
     const express = require('express');
     const router = express.Router();
     const controller = require('../controller/controller');
+    const { verifyToken } = require('../utils/token');
 
 //? Endpoint for getting conversation by ID
 router.get('/:conversationId',
@@ -8,6 +9,7 @@ router.get('/:conversationId',
 
 //? Endpoint for getting conversations by user ID
 router.get('/:userId',
+    verifyToken,
     controller.getConversationsByUserId);
 
 // //? Endpoint for creating a new conversation

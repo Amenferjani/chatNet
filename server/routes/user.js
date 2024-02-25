@@ -2,13 +2,15 @@
     const router = express.Router();
     const multer = require('multer');
     const controller = require('../controller/controller');
+    const { verifyToken } = require('../utils/token');
 
     const upload = multer({ 
         storage:  multer.memoryStorage(),
     });
 
     //? Endpoint for getting user by ID
-    router.get('/getUserById/:userId',
+router.get('/getUserById/:userId',
+        verifyToken,
         controller.getUserById);
 
     //? Endpoint for getting user by email and password
@@ -20,11 +22,13 @@
         controller.createUser);
 
     //? Endpoint for updating user password
-    router.put('/:id/update-password',
+router.put('/:id/update-password',
+        verifyToken,
         controller.updateUserPassword);
 
     //? Endpoint for updating user image
-    router.put('/update-user-image',
+router.put('/update-user-image',
+        verifyToken,
         upload.single('profilePicture'),
         controller.updateUserImage);
 

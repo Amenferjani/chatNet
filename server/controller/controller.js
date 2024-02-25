@@ -4,7 +4,7 @@ const Message = require('../models/message');
 const Conversation = require('../models/conversation');
 const conn = require('../config/connection'); 
 const bcrypt = require("bcrypt");
-const message = require('../models/message');
+const generateToken = require('../utils/token');
 
 /*************** user section ***************/
 
@@ -54,21 +54,22 @@ const getUserByEmailAndPassword = async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email });
-        if(!user){
+        if (!user) {
             return res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
         }
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ error: "Invalid password", code: "INVALID_PASSWORD" });
         }
-        delete user.password; 
-        res.status(200).json({ user : user });
+        delete user.password;
+        const token = generateToken(user);
+
+        res.status(200).json({ user: user, token: token });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "Internal server error" });
-    }
-    
-}
+    };
+};
 
 const updateUserPassword = async (req, res) => {
     const {
