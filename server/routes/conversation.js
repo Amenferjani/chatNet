@@ -25,8 +25,8 @@ router.put('/:conversationId/update-conversation-members',
     controller.addMembers2Conversation);
 
 // //? Endpoint for updating conversation image
-// router.put('/:conversationId/update-conversation-image/:imageId',
-//     controller.updateConversationImage);
+router.put('/:conversationId/update-conversation-image/:imageId',
+    controller.updateConversationImage);
 
 // //? Endpoint for deleting a conversation
 router.delete('conversation/:conversationId/removeMemberFromConversation/:memberId', 

@@ -124,20 +124,19 @@ const updateUsername = async (req, res) => {
 }
 
 const updateUserImage = async (req, res) => {
-    const { userId } = req.body;
-    const buffer = req.file.buffer;
-    const mimetype = req.file.mimetype;
-
+    const userId = req.userId; 
     try {
-        const user = await User.findById();
-        user.img.data = buffer;
-        user.img.contentType = mimetype;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        user.img.data = req.file.buffer;
+        user.img.contentType = req.file.mimetype;
         await user.save();
-
-        res.status(200).json({ message: 'Profile picture updated successfully' });
+        res.status(200).json({ message: 'User image updated successfully' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ message: "Internal server error" });
     }
 };
 /*************** message section ***************/
@@ -170,7 +169,7 @@ const addMessage = async (req, res) => {
         timestamp: timestamp,
         seen: false,
     });
-        global.io.emit(conversationId + '_add_msg', message); 
+        global.io.to(conversationId).emit( 'addMessage', message); 
         res.status(200).json(message);
     } catch (error) {
         console.error(error);
@@ -244,6 +243,9 @@ const createConversation = async (req, res) => {
             members: members,
             name: name ? name : '',
         });
+        members.forEach(memberId => {
+            global.io.to(memberId).emit("createConversation",conversation)
+        });
         res.status(201).json(conversation);
     } catch (error) {
         console.error(error);
@@ -307,6 +309,22 @@ const updateConversationName = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     };
 };
+const updateConversationImage = async (req, res) => {
+    const conversationId = req.params.conversationId; 
+    try {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+        conversation.img.data = req.file.buffer;
+        conversation.img.contentType = req.file.mimetype;
+        await conversation.save();
+        res.status(200).json({ message: 'Conversation image updated successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
 module.exports = {
     // ? user section
     getUserById,
@@ -327,4 +345,5 @@ module.exports = {
     deleteConversation,
     addMembers2Conversation,
     updateConversationName,
+    updateConversationImage,
 };
