@@ -133,6 +133,12 @@ const updateUserImage = async (req, res) => {
         user.img.data = req.file.buffer;
         user.img.contentType = req.file.mimetype;
         await user.save();
+        global.io.emit("updateUserImg",{
+            img: {
+                data: req.file.buffer,
+                contentType: req.file.mimetype
+            }
+        });
         res.status(200).json({ message: 'User image updated successfully' });
     } catch (error) {
         console.error(error);
@@ -244,7 +250,7 @@ const createConversation = async (req, res) => {
             name: name ? name : '',
         });
         members.forEach(memberId => {
-            global.io.to(memberId).emit("createConversation",conversation)
+            global.io.to(memberId).emit("createConversation",{conversation})
         });
         res.status(201).json(conversation);
     } catch (error) {
@@ -254,20 +260,25 @@ const createConversation = async (req, res) => {
 };
 const deleteConversation = async (req, res) => {
     const { conversationId, memberId } = req.params;
+
     try {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
-            res.status(404).json({ message: 'No conversation found.' });
-        }
+            return res.status(404).json({ message: 'No conversation found.' });
+        };
         if (conversation.members.length === 1) {
-            await Conversation.findByIdAndDelete(conversationId);
-            res.status(200).json({ message: 'Conversation deleted ' });
-        }
+            conversation.members = [];
+            await conversation.save();
+            global.io.to(memberId).emit("deleteConversation",  conversationId );
+            return res.status(200).json({ message: 'Conversation deleted successfully' });
+        };
         conversation.members = conversation.members.filter(member =>
             member.toString() !== memberId
         );
+
         await conversation.save();
-        res.status(200).json({ message: 'Member removed from conversation.' });
+        global.io.to(memberId).emit("deleteConversation", conversationId);
+        res.status(200).json(conversation);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
@@ -284,6 +295,9 @@ const addMembers2Conversation = async (req, res) => {
         members.forEach(member => {
             conversation.members.push(member);
         });
+        await conversation.save();
+        global.io.to(conversationId).emit("addMembers2Conversation", members);
+        res.status(201).json(conversation.members);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
@@ -302,7 +316,7 @@ const updateConversationName = async (req, res) => {
         }
         conversation.name = name;
         await conversation.save();
-
+        global.io.to(conversationId).emit("updateConversationName",conversation.name);
         res.status(200).json({ message: "Conversation name updated successfully" });
     } catch (error) {
         console.error(error);
@@ -319,12 +333,21 @@ const updateConversationImage = async (req, res) => {
         conversation.img.data = req.file.buffer;
         conversation.img.contentType = req.file.mimetype;
         await conversation.save();
+
+        global.io.to(conversationId).emit("updateConversationImage", {
+            img: {
+                data: req.file.buffer,
+                contentType: req.file.mimetype
+            }
+        });
+
         res.status(200).json({ message: 'Conversation image updated successfully' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 module.exports = {
     // ? user section
     getUserById,

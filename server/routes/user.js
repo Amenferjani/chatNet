@@ -9,7 +9,7 @@
     });
 
     //? Endpoint for getting user by ID
-router.get('/getUserById/:userId',
+    router.get('/getUserById/:userId',
         verifyToken,
         controller.getUserById);
 
@@ -22,12 +22,12 @@ router.get('/getUserById/:userId',
         controller.createUser);
 
     //? Endpoint for updating user password
-router.put('/:id/update-password',
+    router.put('/:id/update-password',
         verifyToken,
         controller.updateUserPassword);
 
     //? Endpoint for updating user image
-router.put('/update-user-image',
+    router.put('/update-user-image',
         verifyToken,
         upload.single('profilePicture'),
         controller.updateUserImage);

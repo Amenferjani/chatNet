@@ -1,8 +1,12 @@
     const express = require('express');
     const router = express.Router();
+    const multer = require('multer');
     const controller = require('../controller/controller');
     const { verifyToken } = require('../utils/token');
 
+    const upload = multer({ 
+        storage:  multer.memoryStorage(),
+    });
 //? Endpoint for getting conversation by ID
 router.get('/:conversationId',
     controller.getConversationById);
@@ -25,7 +29,8 @@ router.put('/:conversationId/update-conversation-members',
     controller.addMembers2Conversation);
 
 // //? Endpoint for updating conversation image
-router.put('/:conversationId/update-conversation-image/:imageId',
+router.put('/:conversationId/update-conversation-image',
+    upload.single('conversationPicture'),
     controller.updateConversationImage);
 
 // //? Endpoint for deleting a conversation
