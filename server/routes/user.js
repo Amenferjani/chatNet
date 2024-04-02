@@ -4,13 +4,13 @@
     const controller = require('../controller/controller');
     const { verifyToken } = require('../utils/token');
 
+
     const upload = multer({ 
         storage:  multer.memoryStorage(),
     });
 
     //? Endpoint for getting user by ID
     router.get('/getUserById/:userId',
-        verifyToken,
         controller.getUserById);
 
     //? Endpoint for getting user by email and password
@@ -20,16 +20,23 @@
     //?  Endpoint for creating a new user
     router.post('/',
         controller.createUser);
-
+    
     //? Endpoint for updating user password
-    router.put('/:id/update-password',
+    router.put('/update-password',
         verifyToken,
         controller.updateUserPassword);
+    
+    //? Endpoint for updating user name
+    router.put('/update-username',
+        verifyToken,
+        controller.updateUsername);
 
     //? Endpoint for updating user image
     router.put('/update-user-image',
         verifyToken,
         upload.single('profilePicture'),
-        controller.updateUserImage);
+        (req, res)=>controller.updateUserImage(req, res, io));
 
     module.exports = router;
+    
+    //! done testing

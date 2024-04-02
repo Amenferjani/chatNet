@@ -4,7 +4,8 @@ const Message = require('../models/message');
 const Conversation = require('../models/conversation');
 const conn = require('../config/connection'); 
 const bcrypt = require("bcrypt");
-const generateToken = require('../utils/token');
+const { generateToken } = require('../utils/token');
+const {getIO} = require('../socket')
 
 /*************** user section ***************/
 
@@ -16,9 +17,8 @@ const getUserById = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-
-        global.io.emit('userDetails', { user });
-
+        
+        user.password = '';
         res.status(200).json({ user });
     } catch (error) {
         console.error(error);
@@ -42,7 +42,6 @@ const createUser = async (req, res) => {
         }
 
         const user = await User.create({ email: email, password: hashedPassword, username: username }); 
-        global.io.emit("newUser", { user });
         res.status(200).json({ user, message: "user created successfully" });
 
     } catch (error) {
@@ -61,7 +60,7 @@ const getUserByEmailAndPassword = async (req, res) => {
         if (!isMatch) {
             return res.status(401).json({ error: "Invalid password", code: "INVALID_PASSWORD" });
         }
-        delete user.password;
+        user.password = "";
         const token = generateToken(user);
 
         res.status(200).json({ user: user, token: token });
@@ -73,10 +72,10 @@ const getUserByEmailAndPassword = async (req, res) => {
 
 const updateUserPassword = async (req, res) => {
     const {
-        currentPassword,
+        password,
         newPassword,
-        userId
     } = req.body;
+    const userId = req.userId;
     try {
         const user = await User.findById(userId);
         if(!user){
@@ -100,13 +99,10 @@ const updateUserPassword = async (req, res) => {
 }
 
 const updateUsername = async (req, res) => {
-    const {
-        username,
-        userId
-    } = req.body;
-
+    const username = req.body.username;
+    const userId = req.userId;
     try {
-        const user = await User.findById({ userId });
+        const user = await User.findById( userId );
         if(!user){
             return res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
         }
@@ -115,7 +111,16 @@ const updateUsername = async (req, res) => {
         }
         user.username = username;
         await user.save();
-
+        const io = getIO();
+        try {
+            io.emit("updateUserName", {
+                id: userId,
+                username: username,
+            });
+            
+        } catch (emitError) {
+            console.error("Error emitting 'updateUserName' event:", emitError);
+        }
         res.status(200).json({ message: "username updated successfully" });
     } catch (error) {
         console.error(error);
@@ -123,7 +128,7 @@ const updateUsername = async (req, res) => {
     }
 }
 
-const updateUserImage = async (req, res) => {
+const updateUserImage = async (req, res, io) => {
     const userId = req.userId; 
     try {
         const user = await User.findById(userId);
@@ -133,11 +138,9 @@ const updateUserImage = async (req, res) => {
         user.img.data = req.file.buffer;
         user.img.contentType = req.file.mimetype;
         await user.save();
-        global.io.emit("updateUserImg",{
-            img: {
-                data: req.file.buffer,
-                contentType: req.file.mimetype
-            }
+        global.io.emit("updateUserImg", {
+            id: userId,
+            img: user.img,
         });
         res.status(200).json({ message: 'User image updated successfully' });
     } catch (error) {
@@ -148,7 +151,7 @@ const updateUserImage = async (req, res) => {
 /*************** message section ***************/
 
 const getMessageById = async (req, res) => {
-    const messageId = req.params.messageId
+    const messageId = req.params.id
     try {
         const message = await Message.findById(messageId);
         if (!message) {
@@ -184,7 +187,7 @@ const addMessage = async (req, res) => {
 };
 
 const deleteMessage = async (req, res) => {
-    const msgId = req.params.msgId;
+    const msgId = req.params.id;
     try {
         const message = await Message.findByIdAndDelete(msgId);
         if (!message) {
@@ -239,7 +242,7 @@ const getConversationsByUserId = async (req, res) => {
     };
 };
 
-const createConversation = async (req, res) => {
+const createConversation = async (req, res, io) => {
     const { members, name } = req.body;
     
     try {
@@ -258,7 +261,7 @@ const createConversation = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     };
 };
-const deleteConversation = async (req, res) => {
+const deleteConversation = async (req, res, io) => {
     const { conversationId, memberId } = req.params;
 
     try {
@@ -284,7 +287,7 @@ const deleteConversation = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const addMembers2Conversation = async (req, res) => {
+const addMembers2Conversation = async (req, res, io) => {
     const conversationId = req.params.conversationId;
     const members = req.body.members;
     try {
@@ -295,15 +298,16 @@ const addMembers2Conversation = async (req, res) => {
         members.forEach(member => {
             conversation.members.push(member);
         });
+        conversation.members.length>2?conversation.type = "group":conversation.type="private";
         await conversation.save();
         global.io.to(conversationId).emit("addMembers2Conversation", members);
-        res.status(201).json(conversation.members);
+        res.status(201).json(conversation);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const updateConversationName = async (req, res) => {
+const updateConversationName = async (req, res, io) => {
     const conversationId = req.params.conversationId;
     const name = req.body.name;
     try {
@@ -323,7 +327,7 @@ const updateConversationName = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const updateConversationImage = async (req, res) => {
+const updateConversationImage = async (req, res, io) => {
     const conversationId = req.params.conversationId; 
     try {
         const conversation = await Conversation.findById(conversationId);

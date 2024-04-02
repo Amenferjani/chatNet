@@ -3,6 +3,7 @@
     const multer = require('multer');
     const controller = require('../controller/controller');
     const { verifyToken } = require('../utils/token');
+    const { io } = require('../server');
 
     const upload = multer({ 
         storage:  multer.memoryStorage(),
@@ -12,29 +13,29 @@ router.get('/:conversationId',
     controller.getConversationById);
 
 //? Endpoint for getting conversations by user ID
-router.get('/:userId',
+router.get('/conversations-by-user/:userId',
     verifyToken,
     controller.getConversationsByUserId);
 
 // //? Endpoint for creating a new conversation
 router.post('/',
-    controller.createConversation);
+    (req, res)=>controller.createConversation(req, res ,io));
 
 // //? Endpoint for updating conversation name
 router.put('/:conversationId/update-conversation-name',
-    controller.updateConversationName);
+    (req, res)=>controller.updateConversationName(req, res ,io));
 
 // //? Endpoint for updating conversation members
 router.put('/:conversationId/update-conversation-members',
-    controller.addMembers2Conversation);
+    (req, res)=>controller.addMembers2Conversation(req, res, io));
 
 // //? Endpoint for updating conversation image
 router.put('/:conversationId/update-conversation-image',
     upload.single('conversationPicture'),
-    controller.updateConversationImage);
+    (req, res)=>controller.updateConversationImage(req, res, io));
 
 // //? Endpoint for deleting a conversation
-router.delete('conversation/:conversationId/removeMemberFromConversation/:memberId', 
-    controller.deleteConversation);
+router.delete('/:conversationId/remove-member-from-conversation/:memberId', 
+    (req, res)=>controller.deleteConversation(req, res, io));
 
     module.exports = router;
