@@ -3,7 +3,7 @@
     const multer = require('multer');
     const controller = require('../controller/controller');
     const { verifyToken } = require('../utils/token');
-    const { io } = require('../server');
+
 
     const upload = multer({ 
         storage:  multer.memoryStorage(),
@@ -19,23 +19,23 @@ router.get('/conversations-by-user/:userId',
 
 // //? Endpoint for creating a new conversation
 router.post('/',
-    (req, res)=>controller.createConversation(req, res ,io));
+    controller.createConversation);
 
 // //? Endpoint for updating conversation name
 router.put('/:conversationId/update-conversation-name',
-    (req, res)=>controller.updateConversationName(req, res ,io));
+    controller.updateConversationName);
 
 // //? Endpoint for updating conversation members
 router.put('/:conversationId/update-conversation-members',
-    (req, res)=>controller.addMembers2Conversation(req, res, io));
+    controller.addMembers2Conversation);
 
 // //? Endpoint for updating conversation image
 router.put('/:conversationId/update-conversation-image',
     upload.single('conversationPicture'),
-    (req, res)=>controller.updateConversationImage(req, res, io));
+    controller.updateConversationImage);
 
 // //? Endpoint for deleting a conversation
-router.delete('/:conversationId/remove-member-from-conversation/:memberId', 
-    (req, res)=>controller.deleteConversation(req, res, io));
+router.put('/:conversationId/remove-member-from-conversation/:memberId', 
+    controller.deleteConversation);
 
     module.exports = router;

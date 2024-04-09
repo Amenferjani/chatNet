@@ -5,7 +5,8 @@ const Conversation = require('../models/conversation');
 const conn = require('../config/connection'); 
 const bcrypt = require("bcrypt");
 const { generateToken } = require('../utils/token');
-const {getIO} = require('../socket')
+const {getIO} = require('../socket');
+const conversation = require('../models/conversation');
 
 /*************** user section ***************/
 
@@ -100,6 +101,7 @@ const updateUserPassword = async (req, res) => {
 
 const updateUsername = async (req, res) => {
     const username = req.body.username;
+    const conversations = req.body.conversations; 
     const userId = req.userId;
     try {
         const user = await User.findById( userId );
@@ -113,11 +115,13 @@ const updateUsername = async (req, res) => {
         await user.save();
         const io = getIO();
         try {
-            io.emit("updateUserName", {
-                id: userId,
-                username: username,
+            conversations.forEach(conversation => {
+                io.to(conversation).emit("updateUserName", {
+                    room:conversation,
+                    id: userId,
+                    username: username,
+                });
             });
-            
         } catch (emitError) {
             console.error("Error emitting 'updateUserName' event:", emitError);
         }
@@ -128,8 +132,9 @@ const updateUsername = async (req, res) => {
     }
 }
 
-const updateUserImage = async (req, res, io) => {
+const updateUserImage = async (req, res) => {
     const userId = req.userId; 
+    const conversations = req.body.conversations; 
     try {
         const user = await User.findById(userId);
         if (!user) {
@@ -138,9 +143,13 @@ const updateUserImage = async (req, res, io) => {
         user.img.data = req.file.buffer;
         user.img.contentType = req.file.mimetype;
         await user.save();
-        global.io.emit("updateUserImg", {
-            id: userId,
-            img: user.img,
+        io = getIO
+        conversations.forEach(conversation=> {
+            io.to(conversation).emit("updateUserImg", {
+                room: conversation,
+                id: userId,
+                img: user.img,
+            });
         });
         res.status(200).json({ message: 'User image updated successfully' });
     } catch (error) {
@@ -163,7 +172,7 @@ const getMessageById = async (req, res) => {
         res.status(500).json({message: "Internal server error"});
     }
 }
-const addMessage = async (req, res) => {
+const addMessage = async (req, res, next) => {
     const userId = req.params.userId;
     const conversationId = req.params.conversationId;
     const {
@@ -177,12 +186,21 @@ const addMessage = async (req, res) => {
         content: content,
         timestamp: timestamp,
         seen: false,
-    });
-        global.io.to(conversationId).emit( 'addMessage', message); 
-        res.status(200).json(message);
+        });
+        io = getIO();
+        io.to(conversationId).emit('addMessage', {
+            sender: userId,
+            conversation: conversationId,
+            content: content,
+            timestamp: timestamp,
+            seen: false,
+        }); 
+        req.conversationId = conversationId;
+        req.lastMessageTime = timestamp;
+        next();
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: " Internal server error" });
+        res.status(500).json({ message: " Internal server error while adding msg" });
     }
 };
 
@@ -193,7 +211,8 @@ const deleteMessage = async (req, res) => {
         if (!message) {
             return res.status(400).json({ message: 'No message with that ID' });
         }
-        global.io.emit(message.conversation, { action: 'deleteMsg', data: message._id })
+        io = getIO();
+        io.to(message.conversation).emit('deleteMsg', message._id);
         res.status(200).json({ message: 'Message deleted ' });
     } catch (error) {
         console.error(error);
@@ -233,8 +252,12 @@ const getConversationById = async (req, res) => {
 
 const getConversationsByUserId = async (req, res) => {
     const userId = req.params.userId;
+    const { page = 1, pageSize = 10 } = req.body;
     try {
-        const conversations = await Conversation.find({ members: userId });
+        const conversations = await Conversation.find({ members: userId })
+            .sort({ lastMessage: -1 })
+            .skip((page - 1) * pageSize)
+            .limit(Number(pageSize));
         res.status(200).json(conversations);
     } catch (error) {
         console.error(error);
@@ -242,7 +265,7 @@ const getConversationsByUserId = async (req, res) => {
     };
 };
 
-const createConversation = async (req, res, io) => {
+const createConversation = async (req, res) => {
     const { members, name } = req.body;
     
     try {
@@ -253,7 +276,12 @@ const createConversation = async (req, res, io) => {
             name: name ? name : '',
         });
         members.forEach(memberId => {
-            global.io.to(memberId).emit("createConversation",{conversation})
+            getIO().to(memberId).emit("createConversation", {
+                type: type,
+                members: members,
+                name: name,
+                room:memberId,
+            });
         });
         res.status(201).json(conversation);
     } catch (error) {
@@ -261,7 +289,7 @@ const createConversation = async (req, res, io) => {
         res.status(500).json({ message: 'Internal server error' });
     };
 };
-const deleteConversation = async (req, res, io) => {
+const deleteConversation = async (req, res) => {
     const { conversationId, memberId } = req.params;
 
     try {
@@ -272,7 +300,11 @@ const deleteConversation = async (req, res, io) => {
         if (conversation.members.length === 1) {
             conversation.members = [];
             await conversation.save();
-            global.io.to(memberId).emit("deleteConversation",  conversationId );
+            const io = getIO();
+            io.to(conversationId).emit("deleteConversation", {
+                room: conversationId,
+                member : memberId,
+            });
             return res.status(200).json({ message: 'Conversation deleted successfully' });
         };
         conversation.members = conversation.members.filter(member =>
@@ -287,7 +319,7 @@ const deleteConversation = async (req, res, io) => {
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const addMembers2Conversation = async (req, res, io) => {
+const addMembers2Conversation = async (req, res) => {
     const conversationId = req.params.conversationId;
     const members = req.body.members;
     try {
@@ -300,14 +332,18 @@ const addMembers2Conversation = async (req, res, io) => {
         });
         conversation.members.length>2?conversation.type = "group":conversation.type="private";
         await conversation.save();
-        global.io.to(conversationId).emit("addMembers2Conversation", members);
-        res.status(201).json(conversation);
+        const io = getIO();
+        io.to(conversationId).emit("addMembers2Conversation", {
+            members: members,
+            room:conversationId,
+        });
+        res.status(200).json(conversation);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const updateConversationName = async (req, res, io) => {
+const updateConversationName = async (req, res) => {
     const conversationId = req.params.conversationId;
     const name = req.body.name;
     try {
@@ -320,14 +356,30 @@ const updateConversationName = async (req, res, io) => {
         }
         conversation.name = name;
         await conversation.save();
-        global.io.to(conversationId).emit("updateConversationName",conversation.name);
+        const io = getIO();
+        io.to(conversationId).emit("updateConversationName", {
+            conversationName: conversation.name,
+            room:conversationId,
+        });
         res.status(200).json({ message: "Conversation name updated successfully" });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     };
 };
-const updateConversationImage = async (req, res, io) => {
+const updateConversationMetadata = async (req, res) => {
+    const  conversationId  = req.conversationId;
+    const lastMessage= req.lastMessageTime;
+
+    try {
+        await Conversation.findByIdAndUpdate(conversationId, { lastMessage });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ msg: "Internal Server Error" })
+    }
+};
+const updateConversationImage = async (req, res) => {
     const conversationId = req.params.conversationId; 
     try {
         const conversation = await Conversation.findById(conversationId);
@@ -337,12 +389,10 @@ const updateConversationImage = async (req, res, io) => {
         conversation.img.data = req.file.buffer;
         conversation.img.contentType = req.file.mimetype;
         await conversation.save();
-
-        global.io.to(conversationId).emit("updateConversationImage", {
-            img: {
-                data: req.file.buffer,
-                contentType: req.file.mimetype
-            }
+        const io = getIO();
+        io.to(conversationId).emit("updateConversationImage", {
+            room:conversationId,
+            img:conversation.img,
         });
 
         res.status(200).json({ message: 'Conversation image updated successfully' });
@@ -373,4 +423,5 @@ module.exports = {
     addMembers2Conversation,
     updateConversationName,
     updateConversationImage,
+    updateConversationMetadata
 };

@@ -35,7 +35,7 @@
     router.put('/update-user-image',
         verifyToken,
         upload.single('profilePicture'),
-        (req, res)=>controller.updateUserImage(req, res, io));
+        controller.updateUserImage);
 
     module.exports = router;
     

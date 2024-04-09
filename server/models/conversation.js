@@ -13,7 +13,7 @@ const conversationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "user"
     }],
-    lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'message' },
+    lastMessage: { type: Date, default: Date.now },
     name: String,
 });
 const conversation = mongoose.model("conversation", conversationSchema);

@@ -8,5 +8,25 @@
         "Nywi",
         "XVCJ",
         "Yjgx"
-    ]
+    ],
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#350665",
+        "activityBar.background": "#350665",
+        "activityBar.foreground": "#e7e7e7",
+        "activityBar.inactiveForeground": "#e7e7e799",
+        "activityBarBadge.background": "#964f09",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#e7e7e799",
+        "sash.hoverBorder": "#350665",
+        "statusBar.background": "#1c0335",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#350665",
+        "statusBarItem.remoteBackground": "#1c0335",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#1c0335",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#1c033599",
+        "titleBar.inactiveForeground": "#e7e7e799"
+    },
+    "peacock.color": "#1c0335"
 }

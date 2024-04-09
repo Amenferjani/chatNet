@@ -12,7 +12,9 @@
 
 //? Endpoint for adding a new msg
     router.post('/user/:userId/conversation/:conversationId',
-        controller.addMessage);
+        controller.addMessage,
+        controller.updateConversationMetadata
+    );
 
 //? Endpoint for deleting a msg
     router.delete('/:id',

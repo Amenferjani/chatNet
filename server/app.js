@@ -19,7 +19,7 @@ app.use('/api/conversation', conversationRoutes);
 
 const server = http.createServer(app);
 setupSocket(server);
-const PORT = process.env.PORT || 8800;
+const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
